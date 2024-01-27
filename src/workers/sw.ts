@@ -29,6 +29,20 @@ precacheAndRoute(self.__WB_MANIFEST, {
 //   // denylist: [],
 // })
 
+registerRoute(
+  new RegExp('saml-callback'),
+  async (options) => {
+    const request = options.request;
+    const samlBody = await new Response(options.request.body).text();
+    const responseHeaders = {
+      'Content-Type': 'text/html', // Add Content-Type header for HTML
+    };
+    return new Response('<!DOCTYPE html><html><head></head><body><h1>Hello, World!</h1>' + samlBody + '</body></html>', 
+    { status: 200, headers: responseHeaders });
+  },
+  'POST'
+);
+
 registerRoute(new NavigationRoute(
   createHandlerBoundToURL("index.html"),
   {
