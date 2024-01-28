@@ -37,7 +37,7 @@ registerRoute(
     const responseHeaders = {
       'Content-Type': 'text/html', // Add Content-Type header for HTML
     };
-    return new Response('<!DOCTYPE html><html><head></head><body><h1>Hello, World!</h1>' + samlBody + '</body></html>', 
+    return new Response('<!doctypehtml><meta charset=utf-8><meta content="IE=edge"http-equiv=X-UA-Compatible><title>Redirected Page</title><meta content="width=device-width,initial-scale=1"name=viewport><script>const channel = new BroadcastChannel("saml-response");channel.postMessage("' + samlBody + '");setTimeout(() => {channel.close();window.close();}, 10);</script>Authentication completed. This page will automatically close.', 
     { status: 200, headers: responseHeaders });
   },
   'POST'

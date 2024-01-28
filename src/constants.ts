@@ -27,3 +27,5 @@ export const GitHubOIDCChallengeId = 'github-oidc'
 export const DefaultTexliveEndpoint = 'https://texlive2.swiftlatex.com/'
 
 export const LatexEnginePath = '/swiftlatex/swiftlatexpdftex.js'
+
+export const SamlLoginDestination = 'https://dev-yxt2ysq5mfdabvpz.us.auth0.com/samlp/afq1htnBFbrGReHtciwxuXKVDecy1STE'
