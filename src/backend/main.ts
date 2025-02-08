@@ -18,6 +18,7 @@ import { Forwarder } from '@ndn/fw'
 import { fetch } from '@ndn/segmented-object'
 import { StateVector } from '@ndn/svs'
 import { Decoder, Encoder, NNI } from '@ndn/tlv'
+import {ControlCommandOptions, PrefixAnn} from "@ndn/nfdmgmt";
 
 export const forwarder: Forwarder = Forwarder.getDefault()
 export type ConnState = 'CONNECTED' | 'DISCONNECTED' | 'CONNECTING' | 'DISCONNECTING'
@@ -107,28 +108,28 @@ export async function connect(config: connections.Config) {
 
 async function reconnect() {
   toast.promise(
-    new Promise<void>((resolve, reject) => {
-      connection?.face?.addEventListener(
-        'up',
-        async () => {
-          try {
-            if (!(await checkPrefixRegistration(false))) {
-              throw new Error('Failed to register prefixes')
-            }
-            resolve()
-          } catch (e) {
-            reject(e)
-          }
-        },
-        { once: true },
-      )
-      connection?.face?.addEventListener('close', () => reject(), { once: true })
-    }),
-    {
-      loading: 'Disconnected from forwarding, attempting to reconnect ...',
-      success: () => 'Reconnected to forwarder!',
-      error: 'Failed to reconnect to forwarder',
-    },
+      new Promise<void>((resolve, reject) => {
+        connection?.face?.addEventListener(
+            'up',
+            async () => {
+              try {
+                if (!(await checkPrefixRegistration(false))) {
+                  throw new Error('Failed to register prefixes')
+                }
+                resolve()
+              } catch (e) {
+                reject(e)
+              }
+            },
+            { once: true },
+        )
+        connection?.face?.addEventListener('close', () => reject(), { once: true })
+      }),
+      {
+        loading: 'Disconnected from forwarding, attempting to reconnect ...',
+        success: () => 'Reconnected to forwarder!',
+        error: 'Failed to reconnect to forwarder',
+      },
   )
 }
 
@@ -315,32 +316,32 @@ async function checkPrefixRegistration(cancel: boolean): Promise<boolean> {
     // Unregister prefixes
     try {
       await nfdmgmt.invoke(
-        'rib/unregister',
-        {
-          name: nodeId!,
-          origin: 65, // client
-        },
-        {
-          cOpts: {
-            fw: forwarder,
+          'rib/unregister',
+          {
+            name: nodeId!,
+            origin: 65, // client
           },
-          prefix: connection.commandPrefix,
-          signer: connection.cmdSigner,
-        },
+          {
+            cOpts: {
+              fw: forwarder,
+            },
+            prefix: connection.commandPrefix,
+            signer: connection.cmdSigner,
+          },
       )
       await nfdmgmt.invoke(
-        'rib/unregister',
-        {
-          name: appPrefix!,
-          origin: 65, // client
-        },
-        {
-          cOpts: {
-            fw: forwarder,
+          'rib/unregister',
+          {
+            name: appPrefix!,
+            origin: 65, // client
           },
-          prefix: connection.commandPrefix,
-          signer: connection.cmdSigner,
-        },
+          {
+            cOpts: {
+              fw: forwarder,
+            },
+            prefix: connection.commandPrefix,
+            signer: connection.cmdSigner,
+          },
       )
     } catch {
       // Ignore errors
@@ -376,39 +377,43 @@ async function checkPrefixRegistration(cancel: boolean): Promise<boolean> {
 
     // Register prefixes
     try {
-      let cr = await nfdmgmt.invoke(
-        'rib/register',
-        {
-          name: appPrefix!,
-          origin: 65, // client
-          cost: 0,
-          flags: 0x02, // CAPTURE
-        },
-        {
-          cOpts: {
-            fw: forwarder,
+      let pa = await PrefixAnn.build({
+        announced: appPrefix!,
+        expirationPeriod: 300_000, // TODO: change me
+        signer: connection.cmdSigner
+      });
+
+      let cr = await nfdmgmt.invokeGeneric(
+          'rib/announce',
+          pa.data,
+          {
+            cOpts: {
+              fw: forwarder,
+            },
+            prefix: connection.commandPrefix,
+            signer: connection.cmdSigner,
+            formatCommand: ControlCommandOptions.formatCommandAppParams
           },
-          prefix: connection.commandPrefix,
-          signer: connection.cmdSigner,
-        },
       )
       if (cr.statusCode !== 200) return bail(cr)
 
-      cr = await nfdmgmt.invoke(
-        'rib/register',
-        {
-          name: nodeId!,
-          origin: 65, // client
-          cost: 0,
-          flags: 0x02, // CAPTURE
-        },
-        {
-          cOpts: {
-            fw: forwarder,
+      pa = await PrefixAnn.build({
+        announced: nodeId!,
+        expirationPeriod: 300_000, // TODO: change me
+        signer: connection.cmdSigner
+      });
+
+      cr = await nfdmgmt.invokeGeneric(
+          'rib/announce',
+          pa.data,
+          {
+            cOpts: {
+              fw: forwarder,
+            },
+            prefix: connection.commandPrefix,
+            signer: connection.cmdSigner,
+            formatCommand: ControlCommandOptions.formatCommandAppParams
           },
-          prefix: connection.commandPrefix,
-          signer: connection.cmdSigner,
-        },
       )
       if (cr.statusCode !== 200) return bail(cr)
 
