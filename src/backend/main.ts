@@ -198,6 +198,7 @@ export async function bootstrapWorkspace(opts: {
       parentId: undefined,
       kind: 'folder',
       items: [],
+      deleted: false,
     }
     yDoc.clientID = clientID
   }
