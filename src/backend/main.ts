@@ -160,11 +160,12 @@ export async function bootstrapWorkspace(opts: {
   nodeId = opts.ownCertificate.name.getPrefix(opts.ownCertificate.name.length - 4)
 
   if (opts.inMemory) {
-    persistStore = new InMemoryStorage()
+    // This is due to JSR failed to handle [Symbol.dispose] properly.
+    persistStore = new InMemoryStorage() as unknown as Storage
   } else {
     const handle = await openRoot()
     const subFolder = await handle.getDirectoryHandle(encodePath(nodeId.toString()), { create: true })
-    persistStore = new FsStorage(subFolder)
+    persistStore = new FsStorage(subFolder) as unknown as Storage
   }
 
   // NOTE: CertStorage does not have a producer to serve certificates. This reuses the SyncAgent's responder.
@@ -208,7 +209,7 @@ export async function bootstrapWorkspace(opts: {
 
   const localTimestamp = await persistStore.get('snapshotTimestamp')
 
-  const timestampInterval = 86400000 //24hr
+  const timestampInterval = 900000 //15min //86400000 //24hr
   if (!localYJSUpdate || !localTimestamp || Date.now() - NNI.decode(localTimestamp) > timestampInterval) {
     const interest = new Interest(snapshotName, Interest.CanBePrefix, Interest.MustBeFresh)
     try {
@@ -233,19 +234,29 @@ export async function bootstrapWorkspace(opts: {
       await persistStore.set('localSnapshot', snapshotData)
 
       // State Vector Merge
+      // Extract state vector from the snapshot
       const aloSyncKey = '/8=local' + nodeId.toString() + '/32=sync/32=alo/8=syncVector'
-      // TODO: SVS parsing check TLV type. Currently assumed as /54=.
+      // TODO: SVS parsing check TLV type. Currently assumed as /54=, using ".value" to extract the encoded state vector
       let targetSVEncoded = targetName.at(-1).value
-      // load local state first with the snapshot.
-      await persistStore.set('localState', targetSVEncoded)
 
-      // Merge the SV with the local one so that when SyncAgent starts up,
-      // it replays the local updates (in local storage), starting from snapshot's vector.
-      const localSVEncoded = await persistStore.get(aloSyncKey)
-      if (localSVEncoded) {
-        const localSV = Decoder.decode(localSVEncoded, StateVector)
+      // Merge targetSV with local YJS state vector, then save to local YJS save
+      const localYjsSVEncoded = await persistStore.get('localState')
+      let mergedYjsSVEncoded = targetSVEncoded //default case
+      if (localYjsSVEncoded) {
+        const localYjsSV = Decoder.decode(localYjsSVEncoded, StateVector)
         const targetSV = Decoder.decode(targetSVEncoded, StateVector)
-        targetSV.mergeFrom(localSV)
+        targetSV.mergeFrom(localYjsSV)
+        mergedYjsSVEncoded = Encoder.encode(targetSV)
+      }
+      await persistStore.set('localState', mergedYjsSVEncoded)
+
+      // Merge the SV with the local ALO one so that when SyncAgent starts up,
+      // it replays the local updates (in local storage), starting from snapshot's vector.
+      const localAloSVEncoded = await persistStore.get(aloSyncKey)
+      if (localAloSVEncoded) {
+        const localAloSV = Decoder.decode(localAloSVEncoded, StateVector)
+        const targetSV = Decoder.decode(targetSVEncoded, StateVector)
+        targetSV.mergeFrom(localAloSV)
         targetSVEncoded = Encoder.encode(targetSV)
       }
       await persistStore.set(aloSyncKey, targetSVEncoded)
