@@ -108,28 +108,28 @@ export async function connect(config: connections.Config) {
 
 async function reconnect() {
   toast.promise(
-      new Promise<void>((resolve, reject) => {
-        connection?.face?.addEventListener(
-            'up',
-            async () => {
-              try {
-                if (!(await checkPrefixRegistration(false))) {
-                  throw new Error('Failed to register prefixes')
-                }
-                resolve()
-              } catch (e) {
-                reject(e)
-              }
-            },
-            { once: true },
-        )
-        connection?.face?.addEventListener('close', () => reject(), { once: true })
-      }),
-      {
-        loading: 'Disconnected from forwarding, attempting to reconnect ...',
-        success: () => 'Reconnected to forwarder!',
-        error: 'Failed to reconnect to forwarder',
-      },
+    new Promise<void>((resolve, reject) => {
+      connection?.face?.addEventListener(
+        'up',
+        async () => {
+          try {
+            if (!(await checkPrefixRegistration(false))) {
+              throw new Error('Failed to register prefixes')
+            }
+            resolve()
+          } catch (e) {
+            reject(e)
+          }
+        },
+        { once: true },
+      )
+      connection?.face?.addEventListener('close', () => reject(), { once: true })
+    }),
+    {
+      loading: 'Disconnected from forwarding, attempting to reconnect ...',
+      success: () => 'Reconnected to forwarder!',
+      error: 'Failed to reconnect to forwarder',
+    },
   )
 }
 
@@ -327,32 +327,32 @@ async function checkPrefixRegistration(cancel: boolean): Promise<boolean> {
     // Unregister prefixes
     try {
       await nfdmgmt.invoke(
-          'rib/unregister',
-          {
-            name: nodeId!,
-            origin: 65, // client
+        'rib/unregister',
+        {
+          name: nodeId!,
+          origin: 65, // client
+        },
+        {
+          cOpts: {
+            fw: forwarder,
           },
-          {
-            cOpts: {
-              fw: forwarder,
-            },
-            prefix: connection.commandPrefix,
-            signer: connection.cmdSigner,
-          },
+          prefix: connection.commandPrefix,
+          signer: connection.cmdSigner,
+        },
       )
       await nfdmgmt.invoke(
-          'rib/unregister',
-          {
-            name: appPrefix!,
-            origin: 65, // client
+        'rib/unregister',
+        {
+          name: appPrefix!,
+          origin: 65, // client
+        },
+        {
+          cOpts: {
+            fw: forwarder,
           },
-          {
-            cOpts: {
-              fw: forwarder,
-            },
-            prefix: connection.commandPrefix,
-            signer: connection.cmdSigner,
-          },
+          prefix: connection.commandPrefix,
+          signer: connection.cmdSigner,
+        },
       )
     } catch {
       // Ignore errors
