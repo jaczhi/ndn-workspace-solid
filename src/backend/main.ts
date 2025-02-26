@@ -18,7 +18,7 @@ import { Forwarder } from '@ndn/fw'
 import { fetch } from '@ndn/segmented-object'
 import { StateVector } from '@ndn/svs'
 import { Decoder, Encoder, NNI } from '@ndn/tlv'
-import {ControlCommandOptions, PrefixAnn} from "@ndn/nfdmgmt";
+import { ControlCommandOptions, PrefixAnn } from '@ndn/nfdmgmt'
 
 export const forwarder: Forwarder = Forwarder.getDefault()
 export type ConnState = 'CONNECTED' | 'DISCONNECTED' | 'CONNECTING' | 'DISCONNECTING'
@@ -392,41 +392,33 @@ async function checkPrefixRegistration(cancel: boolean): Promise<boolean> {
       let pa = await PrefixAnn.build({
         announced: appPrefix!,
         expirationPeriod: 300_000, // TODO: change me
-        signer: connection.cmdSigner
-      });
+        signer: connection.cmdSigner,
+      })
 
-      let cr = await nfdmgmt.invokeGeneric(
-          'rib/announce',
-          pa.data,
-          {
-            cOpts: {
-              fw: forwarder,
-            },
-            prefix: connection.commandPrefix,
-            signer: connection.cmdSigner,
-            formatCommand: ControlCommandOptions.formatCommandAppParams
-          },
-      )
+      let cr = await nfdmgmt.invokeGeneric('rib/announce', pa.data, {
+        cOpts: {
+          fw: forwarder,
+        },
+        prefix: connection.commandPrefix,
+        signer: connection.cmdSigner,
+        formatCommand: ControlCommandOptions.formatCommandAppParams,
+      })
       if (cr.statusCode !== 200) return bail(cr)
 
       pa = await PrefixAnn.build({
         announced: nodeId!,
         expirationPeriod: 300_000, // TODO: change me
-        signer: connection.cmdSigner
-      });
+        signer: connection.cmdSigner,
+      })
 
-      cr = await nfdmgmt.invokeGeneric(
-          'rib/announce',
-          pa.data,
-          {
-            cOpts: {
-              fw: forwarder,
-            },
-            prefix: connection.commandPrefix,
-            signer: connection.cmdSigner,
-            formatCommand: ControlCommandOptions.formatCommandAppParams
-          },
-      )
+      cr = await nfdmgmt.invokeGeneric('rib/announce', pa.data, {
+        cOpts: {
+          fw: forwarder,
+        },
+        prefix: connection.commandPrefix,
+        signer: connection.cmdSigner,
+        formatCommand: ControlCommandOptions.formatCommandAppParams,
+      })
       if (cr.statusCode !== 200) return bail(cr)
 
       toast.success('Registered routes successfully!')
